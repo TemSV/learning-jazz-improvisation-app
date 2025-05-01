@@ -2,6 +2,7 @@ import sqlite3
 from dataclasses import dataclass
 from typing import List, Tuple
 
+from .models import ChordPattern
 from .pattern_analyzer import PatternAnalyzer
 
 
@@ -17,59 +18,59 @@ class SongChord:
 
 def parse_bar_chord(chord_text: str) -> List[str]:
     """
-    Парсит содержимое одного такта
+    Parses the chord string for a single bar.
+    Returns an empty list if the bar is empty or contains only whitespace.
     """
-    if not chord_text or chord_text.strip() == '':
+    if not chord_text or not chord_text.strip():
         return []
-
-    chords = chord_text.strip().split()
-    return chords
+    return chord_text.strip().split()
 
 
 class DatabaseChordParser:
     def __init__(self, db_path: str):
-        """
-        Инициализация парсера с путем к базе данных
-        """
         self.db_path = db_path
-        self.current_chord = None
+        self.current_chord = None # Tracks the last chord seen for handling empty bars
         self.pattern_analyzer = PatternAnalyzer()
 
-    def get_song_signature(self, songid: int) -> str:
+    def get_song_signature(self, song_id: int) -> str | None:
         """
-        Получает сигнатуру для конкретной песни из базы данных
+        Retrieves the time signature for a specific song from the database.
+        Returns None if not found or on error.
         """
         try:
             with sqlite3.connect(self.db_path) as conn:
                 cursor = conn.cursor()
+
                 query = """
-                    SELECT signature 
-                    FROM song_chords 
+                    SELECT signature
+                    FROM song_chords
                     WHERE songid = ?
-                """     
-                cursor.execute(query, (songid,))
+                    LIMIT 1
+                """
+                cursor.execute(query, (song_id,))
                 row = cursor.fetchone()
                 return row[0] if row else None
         except sqlite3.Error as e:
-            print(f"Ошибка при получении данных из БД: {e}")
+            print(f"Error fetching song signature from DB: {e}")
             return None
 
-    def get_song_chords(self, songid: int) -> List[SongChord]:
+    def get_song_chords(self, song_id: int) -> List[SongChord]:
         """
-        Получает все аккорды для конкретной песни из базы данных
+        Retrieves all chord entries for a specific song from the database,
+        ordered by bar number.
         """
         try:
             with sqlite3.connect(self.db_path) as conn:
                 cursor = conn.cursor()
                 query = """
-                    SELECT barid, songid, bar, signature, chords, form 
-                    FROM song_chords 
-                    WHERE songid = ? 
+                    SELECT barid, songid, bar, signature, chords, form
+                    FROM song_chords
+                    WHERE songid = ?
                     ORDER BY bar
                 """
-                cursor.execute(query, (songid,))
+                cursor.execute(query, (song_id,))
                 rows = cursor.fetchall()
-                
+
                 return [
                     SongChord(
                         barid=row[0],
@@ -82,49 +83,67 @@ class DatabaseChordParser:
                     for row in rows
                 ]
         except sqlite3.Error as e:
-            print(f"Ошибка при получении данных из БД: {e}")
+            print(f"Error fetching song chords from DB: {e}")
             return []
 
-    def parse_song_chords(self, songid: int) -> List[Tuple[int, List[str]]]:
+    def parse_song_chords(self, song_id: int) -> List[Tuple[int, List[str]]]:
         """
-        Получает и парсит последовательность аккордов для песни
+        Retrieves and parses the chord sequence for a song.
+        Handles empty bars by propagating the last known chord.
+        Returns a list of tuples: (bar_number, [list_of_chords_in_bar]).
         """
-        song_data = self.get_song_chords(songid)
+        song_data = self.get_song_chords(song_id)
         chord_sequence = []
-        
+        self.current_chord = None # Reset for each song parse
+
         for bar_data in song_data:
             bar_chords = parse_bar_chord(bar_data.chords)
 
             if not bar_chords:
+                # If bar is empty, use the last known chord (if any)
                 if self.current_chord:
-                    bar_chords = [self.current_chord]
+                    # Represent this bar as containing the held chord
+                    bar_chords_to_add = [self.current_chord]
+                else:
+                    # No previous chord and bar is empty (e.g., start of song)
+                    bar_chords_to_add = [] # Represent as truly empty
             else:
+                # Update the last known chord if the bar wasn't empty
                 self.current_chord = bar_chords[-1]
-            
-            chord_sequence.append((bar_data.bar, bar_chords))
-        
+                bar_chords_to_add = bar_chords
+
+            chord_sequence.append((bar_data.bar, bar_chords_to_add))
+
         return chord_sequence
 
-    def analyze_patterns(self, songid: int):
+    def analyze_song(self, song_id: int) -> List[ChordPattern]:
         """
-        Анализирует паттерны в песне
+        Analyzes harmonic patterns in the specified song.
         """
-        chord_sequence = self.parse_song_chords(songid)
-        patterns = self.pattern_analyzer.find_two_five_one(chord_sequence)
-        
-        print(f"\nНайденные II-V-I в песне {songid}:")
-        for start_pos, pattern in patterns:
-            print(f"\nПозиция {start_pos}:")
-            for chord in pattern:
-                print(f"  {chord.chord} (длительность: {chord.duration} такт(а))")
+        print(f"\nAnalyzing song ID: {song_id}")
+        chord_sequence = self.parse_song_chords(song_id)
+
+        # Use the unified find_patterns method
+        patterns = self.pattern_analyzer.find_patterns(chord_sequence)
+
+        print(f"\nFound patterns in song {song_id}:")
+        if not patterns:
+            print("  No patterns found.")
+        else:
+            for pattern in patterns:
+                chord_strs = [f"{c.chord} ({c.duration} beats)" for c in pattern.chords]
+                print(f"  - {pattern.pattern_type} in {pattern.key} starting at index {pattern.start_bar}: [{ ' | '.join(chord_strs) }]")
+        return patterns
 
 
 def main():
-    parser = DatabaseChordParser("C:\polytech\Diploma\wjazzd.db")
-    song_chords = parser.parse_song_chords(1)
-    analyzer = PatternAnalyzer()
-    patterns = analyzer.find_two_five_one(song_chords)
-    print(patterns)
+    # Example usage:
+    db_path = r"C:\polytech\Diploma\wjazzd.db"
+    parser = DatabaseChordParser(db_path)
+
+    song_id_to_analyze = 1
+    found_patterns = parser.analyze_song(song_id_to_analyze)
+
 
 
 if __name__ == "__main__":
