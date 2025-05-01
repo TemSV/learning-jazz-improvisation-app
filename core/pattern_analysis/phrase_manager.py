@@ -2,7 +2,7 @@ import sqlite3
 import json
 from typing import List, Dict, Tuple, Optional, Any
 from dataclasses import dataclass, field
-import math # For normalization
+import math
 
 from .pattern_analyzer import PatternAnalyzer
 from .models import ChordPattern, ChordWithDuration, BeatInfo, PhraseSectionInfo, PhraseInfo
@@ -480,7 +480,6 @@ class PhraseManager:
          try:
              with sqlite3.connect(self.db_path) as conn:
                  cursor = conn.cursor()
-                 # Adjust 'section_id' to your actual primary key column if different
                  cursor.execute(f"SELECT section_id FROM sections WHERE type = ?", (phrase_type,))
                  rows = cursor.fetchall()
                  ids = [row[0] for row in rows]

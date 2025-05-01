@@ -1,20 +1,25 @@
+import sqlite3
+import json
 import time
+from typing import List, Dict, Tuple, Any # Добавили Any
+
+# Импорты ваших классов
 from core.pattern_analysis.parser import DatabaseChordParser
 from core.pattern_analysis.pattern_analyzer import PatternAnalyzer
-from core.pattern_analysis.phrase_manager import PhraseManager, PhraseInfo # Import PhraseInfo
-from core.pattern_analysis.models import ChordPattern, ChordWithDuration # Ensure ChordWithDuration is imported
+from core.pattern_analysis.phrase_manager import PhraseManager, PhraseInfo
+from core.pattern_analysis.models import ChordPattern, ChordWithDuration
 
-# --- Configuration ---
-DB_PATH = r"C:\polytech\Diploma\wjazzd.db" # Use raw string for path
-SONG_ID_TO_ANALYZE = 1
-TOP_N_RECOMMENDATIONS = 5 # Number of phrases to recommend per pattern
+# --- Конфигурация ---
+DB_PATH = r"C:\polytech\Diploma\wjazzd.db"
+SONG_ID_TO_ANALYZE = 3
+TOP_N_RECOMMENDATIONS = 5
 
 def main():
     print("Initializing components...")
     start_time = time.time()
     parser = DatabaseChordParser(DB_PATH)
     analyzer = PatternAnalyzer()
-    # PhraseManager now requires PatternAnalyzer
+    # PhraseManager все еще нужен для compute_similarity
     phrase_mgr = PhraseManager(DB_PATH, analyzer)
     init_time = time.time()
     print(f"Initialization took {init_time - start_time:.2f} seconds.")
@@ -35,53 +40,57 @@ def main():
         return
     print(f"Found {len(song_patterns)} patterns in the song.")
 
-    # --- 2. Prepare Phrases ---
-    print("\nLoading and processing all phrases...")
-    all_phrases_info = phrase_mgr.get_all_phrases()
-    if not all_phrases_info:
-        print("No phrases found in the database.")
-        return
+    # --- 2. Load Preprocessed Phrase Data ---
+    print("\nLoading preprocessed phrase features...")
+    preprocessed_phrases = [] # List to store (melid, start_idx, end_idx, features_dict)
+    conn = None
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT melid, start_note_index, end_note_index, features_json
+            FROM phrase_analysis
+        """)
+        rows = cursor.fetchall()
+        load_start_time = time.time()
 
-    phrase_features_list = []
-    processed_phrase_count = 0
-    skipped_phrase_count = 0
-    for phrase in all_phrases_info:
-        # Ensure phrase onsets were calculated
-        if phrase.start_onset is None or phrase.end_onset is None:
-            # print(f"Skipping phrase (no onset): MelID {phrase.melid}, Indices {phrase.start_note_index}-{phrase.end_note_index}")
-            skipped_phrase_count += 1
-            continue
+        skipped_deserialize = 0
+        for row in rows:
+            melid, start_idx, end_idx, features_json_str = row
+            try:
+                if features_json_str:
+                    features_dict = json.loads(features_json_str)
+                    preprocessed_phrases.append( (melid, start_idx, end_idx, features_dict) )
+                else:
+                     skipped_deserialize += 1
+            except json.JSONDecodeError as e:
+                print(f"Error decoding features JSON for MelID {melid}, Indices {start_idx}-{end_idx}: {e}")
+                skipped_deserialize += 1
 
-        processed_chords = phrase_mgr.get_processed_phrase_chords(phrase)
-        if processed_chords:
-            features = phrase_mgr.compute_phrase_features(processed_chords)
-            if features: # Ensure features were actually computed
-                 # Store tuple (PhraseInfo, features_dict, processed_chords)
-                 # Storing processed_chords here avoids recalculating later
-                 phrase_features_list.append((phrase, features, processed_chords))
-                 processed_phrase_count += 1
-            else:
-                 # print(f"Skipping phrase (no features): MelID {phrase.melid}, Indices {phrase.start_note_index}-{phrase.end_note_index}")
-                 skipped_phrase_count += 1
-        else:
-            # print(f"Skipping phrase (no chords): MelID {phrase.melid}, Indices {phrase.start_note_index}-{phrase.end_note_index}")
-            skipped_phrase_count += 1
+        load_end_time = time.time()
+        print(f"Loaded {len(preprocessed_phrases)} preprocessed phrases (skipped {skipped_deserialize} due to missing/bad JSON).")
+        print(f"Loading took {load_end_time - load_start_time:.2f} seconds.")
 
-    process_phrases_time = time.time()
-    print(f"Phrase processing took {process_phrases_time - analyze_song_time:.2f} seconds.")
-    print(f"Processed {processed_phrase_count} phrases with features (skipped {skipped_phrase_count}).")
+    except sqlite3.Error as e:
+        print(f"Database error loading preprocessed phrases: {e}")
+        return # Не можем продолжать без данных фраз
+    finally:
+        if conn:
+            conn.close()
 
-    if not phrase_features_list:
-        print("No phrases could be processed to generate features.")
+    if not preprocessed_phrases:
+        print("No preprocessed phrase features found in the database. Run preprocess_phrases.py first.")
         return
 
     # --- 3. Compare Patterns and Phrases & 4. Recommend ---
     print(f"\n--- Recommendations for Song ID: {SONG_ID_TO_ANALYZE} ---")
+    recommend_start_time = time.time()
+
     for i, pattern in enumerate(song_patterns):
         pattern_chords_str = " -> ".join([c.chord for c in pattern.chords])
         print(f"\n--- Pattern #{i+1} ---")
         print(f"  Type:       {pattern.pattern_type}")
-        print(f"  Key (Info): {pattern.key}") # Key is just informational now
+        print(f"  Key (Info): {pattern.key}")
         print(f"  Chords:     {pattern_chords_str}")
         print(f"  Start Index:{pattern.start_bar}")
         print(f"  Duration:   {pattern.total_duration:.2f} beats")
@@ -91,45 +100,38 @@ def main():
             print("  (Pattern has no features to compare)")
             continue
 
-        # Calculate similarity to all processed phrases
         pattern_similarities = []
-        # Iterate through the extended list of tuples
-        for phrase_info, phrase_features, phrase_proc_chords in phrase_features_list:
-            if not phrase_features: # Should not happen based on previous check, but belt-and-suspenders
+        # Итерация по предзагруженным данным
+        for melid, start_idx, end_idx, phrase_features in preprocessed_phrases:
+            if not phrase_features: # Дополнительная проверка
                 continue
 
-            # Use the compute_similarity method (available in PhraseManager)
             similarity = phrase_mgr.compute_similarity(pattern.features, phrase_features)
-            # Store tuple (phrase_object, similarity_score, processed_chords)
-            pattern_similarities.append((phrase_info, similarity, phrase_proc_chords))
+            # Сохраняем идентификаторы фразы и сходство
+            pattern_similarities.append( (melid, start_idx, end_idx, similarity) )
 
-        # Sort phrases by similarity score in descending order
-        pattern_similarities.sort(key=lambda item: item[1], reverse=True)
+        pattern_similarities.sort(key=lambda item: item[3], reverse=True) # Сортировка по similarity
 
-        # Print top N recommendations for this pattern
         print(f"\n  Top {TOP_N_RECOMMENDATIONS} similar phrases:")
         if not pattern_similarities:
             print("    No similar phrases found.")
         else:
-            # Take top N, or fewer if less were found
             num_to_show = min(TOP_N_RECOMMENDATIONS, len(pattern_similarities))
-            # Unpack the tuple including processed chords
-            for phrase_rec, score, processed_chords_rec in pattern_similarities[:num_to_show]:
-                 # phrase_rec is a PhraseInfo object
-                 print(f"    - MelID: {phrase_rec.melid: <4} "
-                       f"Indices: {phrase_rec.start_note_index}-{phrase_rec.end_note_index} "
-                       # f"Value: '{phrase_rec.value}' " # Value might be long, optional
+            # Распаковка кортежа с идентификаторами
+            for melid_rec, start_idx_rec, end_idx_rec, score in pattern_similarities[:num_to_show]:
+                 print(f"    - MelID: {melid_rec: <4} "
+                       f"Indices: {start_idx_rec}-{end_idx_rec} "
                        f"(Similarity: {score:.4f})")
-                 # Format and print the chords from the processed list
-                 if processed_chords_rec:
-                     chords_repr = " -> ".join([f"{c.chord} ({c.duration:.1f})" for c in processed_chords_rec])
-                     print(f"      Chords: {chords_repr}")
-                 else:
-                      print("      Chords: (Not available)") # Fallback
+                 # Вывод аккордов теперь не делаем, так как их нет в памяти
+                 # Чтобы вывести аккорды, нужен будет доп. запрос к phrase_analysis по ID/индексам
+
         print("-" * 40)
 
+    recommend_end_time = time.time()
+    print(f"\nRecommendation phase took: {recommend_end_time - recommend_start_time:.2f} seconds.")
     end_time = time.time()
-    print(f"\nTotal execution time: {end_time - start_time:.2f} seconds.")
+    print(f"Total execution time: {end_time - start_time:.2f} seconds.")
+
 
 if __name__ == "__main__":
     main()
