@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 from typing import List, Dict, Optional
 
 # --- Basic Data Structures ---
@@ -54,6 +54,8 @@ class RecommendationRequest(BaseModel):
     limit: int = Field(default=5, ge=1, le=50)
 
 class RecommendedPhrase(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+
     melid: int
     start_index: int = Field(alias="start_note_index")
     end_index: int = Field(alias="end_note_index")

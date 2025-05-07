@@ -3,13 +3,11 @@ import json
 from fastapi import APIRouter, Depends, HTTPException, Body
 from typing import List, Dict
 
-# Импортируем схемы Pydantic
 from ..schemas import (
     RecommendationRequest, RecommendationResponse, RecommendedPhrase, ChordDuration
 )
-# Импортируем зависимости
+
 from ..dependencies import get_phrase_manager, get_db_path
-# Импортируем менеджер фраз для логики сходства
 from core.pattern_analysis.phrase_manager import PhraseManager
 
 router = APIRouter(
@@ -50,7 +48,6 @@ async def get_phrase_recommendations(
     try:
         conn = sqlite3.connect(db_path)
         cursor = conn.cursor()
-        # Load all necessary preprocessed phrase data
         cursor.execute("""
             SELECT melid, start_note_index, end_note_index, features_json, processed_chords_json
             FROM phrase_analysis
@@ -60,14 +57,14 @@ async def get_phrase_recommendations(
         skipped_deserialize = 0
         for row in rows:
             try:
-                if row[3]: # Check features_json is not None
+                if row[3]:
                     features_dict = json.loads(row[3])
                     preprocessed_phrases_data.append({
                         "melid": row[0],
                         "start_note_index": row[1],
                         "end_note_index": row[2],
                         "features": features_dict,
-                        "chords_json": row[4] # Store chords JSON string for later deserialization
+                        "chords_json": row[4]
                     })
                 else:
                     skipped_deserialize +=1
@@ -122,13 +119,12 @@ async def get_phrase_recommendations(
 
     for i in range(num_to_show):
         rec_data = all_similarities[i]
-        # Deserialize chords only for the top N results
         deserialized_chords = deserialize_processed_chords(rec_data["chords_json"])
 
         top_recommendations.append(RecommendedPhrase(
             melid=rec_data["melid"],
-            start_index=rec_data["start_note_index"],
-            end_index=rec_data["end_note_index"],
+            start_note_index=rec_data["start_note_index"],
+            end_note_index=rec_data["end_note_index"],
             similarity=rec_data["similarity"],
             chords=deserialized_chords
         ))
