@@ -3,6 +3,35 @@ from enum import Enum
 from typing import Dict, List, Optional
 
 
+
+CHORD_TYPE_TO_NUMERIC = {
+    # Major family (values around 0.8-0.9)
+    'maj': 0.8,
+    'maj6': 0.85,
+    'maj7': 0.9,
+
+    # Minor family (values around 0.5-0.6)
+    'min': 0.5,
+    'min6': 0.55,
+    'min7': 0.6,
+
+    # Dominant family (values around 0.2-0.3)
+    'dom7': 0.3,
+
+    # Diminished/Altered Tension (values around 0.0-0.15)
+    'half_dim': 0.1,  # m7b5
+    'dim': 0.12,      # diminished triad
+    'dim7': 0.15,     # fully diminished 7th
+    'aug': 0.05,      # augmented (distinct tension)
+
+    # Suspended (distinct category, e.g., around 0.7)
+    'sus4': 0.7,
+    'sus2': 0.72,
+
+    'unknown': 0.4   # A neutral or less emphasized value for unknowns
+}
+
+
 class ChordQuality(Enum):
     MAJOR = ''
     MINOR = '-'
@@ -103,7 +132,6 @@ class PhraseInfo:
     start_note_index: int # 0-based index within the melody's notes (ordered by onset)
     end_note_index: int   # 0-based index (exclusive)
     value: str            # The 'value' field from sections table
-    # Optional fields are now correctly typed
     start_onset: Optional[float] = field(default=None, init=False)
     end_onset: Optional[float] = field(default=None, init=False)
-    phrase_db_id: Optional[int] = None # Assuming sections might have a primary key later
+    phrase_db_id: Optional[int] = None

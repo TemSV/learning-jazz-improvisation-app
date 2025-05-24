@@ -7,8 +7,9 @@ class ChordDuration(BaseModel):
     chord: str
     duration: float
 
+# Reference to a specific chord within a specific bar of the *original* song chords list
 class OriginalChordRef(BaseModel):
-    original_bar_id: int
+    barid: int
 
 # --- Song Related Schemas ---
 
@@ -37,16 +38,16 @@ class SongChordsResponse(BaseModel):
 class PatternInfo(BaseModel):
     type: str
     key: str | None = None
-    start_index: int # Index in the *processed* chord list of the song
-    end_index: int   # Inclusive end index in the *processed* chord list
-    chords: List[ChordDuration] # Chords of the pattern itself
+    # Removed start_index and end_index
+    # New field to reference original chords
+    original_chord_refs: List[OriginalChordRef] = Field(description="References to the original chords/bars that form this pattern")
+    chords: List[ChordDuration] # Chords of the pattern itself (normalized)
     features: Dict[str, float] = Field(description="Features dict for this pattern instance")
 
 class SongPatternsResponse(BaseModel):
     song_id: int
     title: str | None = None
-    # Processed chords are useful context for start_index/end_index of patterns
-    processed_song_chords: List[ChordDuration]
+    # Removed processed_song_chords
     patterns: List[PatternInfo]
 
 

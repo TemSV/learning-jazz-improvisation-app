@@ -5,8 +5,7 @@ from dataclasses import dataclass, field
 import math
 
 from .pattern_analyzer import PatternAnalyzer
-from .models import ChordPattern, ChordWithDuration, BeatInfo, PhraseSectionInfo, PhraseInfo
-
+from .models import ChordPattern, ChordWithDuration, BeatInfo, PhraseSectionInfo, PhraseInfo, CHORD_TYPE_TO_NUMERIC
 
 
 class PhraseManager:
@@ -260,9 +259,7 @@ class PhraseManager:
         if not raw_sequence:
             return []
 
-        # Delegate processing to PatternAnalyzer
-        # We assume PatternAnalyzer has the _process_chord_sequence method
-        # Note: _process_chord_sequence might need access to time signature eventually
+
         try:
              # Ensure the analyzer's process method is robust
              processed_chords = self.pattern_analyzer._process_chord_sequence(raw_sequence)
@@ -272,7 +269,10 @@ class PhraseManager:
              return []
 
 
-    def compute_phrase_features(self, phrase_chords: List[ChordWithDuration], interval_weight: float = 3.0) -> Dict[str, float]:
+    def compute_phrase_features(self, phrase_chords: List[ChordWithDuration],
+                                interval_weight: float = 1.5,
+                                chord_type_weight: float = 2.0,
+                                chord_duration_weight: float = 2.0) -> Dict[str, float]:
         """
         Computes key-invariant features for the phrase, mirroring
         PatternAnalyzer._compute_comparison_features logic including interval normalization.
@@ -294,12 +294,14 @@ class PhraseManager:
             # Chord position
             features[f'feat_chord_{i}_position'] = i / num_chords if num_chords > 1 else 0
 
-            # Chord relative duration
-            features[f'feat_chord_{i}_duration'] = chord_dur.duration / total_duration
+            # Chord relative duration (with weight)
+            raw_duration_feature = chord_dur.duration / total_duration
+            features[f'feat_chord_{i}_duration'] = raw_duration_feature * chord_duration_weight
 
-            # Chord type (using analyzer's centralized method)
-            chord_type = self.pattern_analyzer._get_chord_type(chord_dur.chord)
-            features[f'feat_chord_{i}_type'] = hash(chord_type) % 100 / 100.0
+            # Chord type (using analyzer's centralized method and mapping, with weight)
+            chord_type_str = self.pattern_analyzer._get_chord_type(chord_dur.chord)
+            numeric_chord_type = CHORD_TYPE_TO_NUMERIC.get(chord_type_str, CHORD_TYPE_TO_NUMERIC['unknown'])
+            features[f'feat_chord_{i}_type'] = numeric_chord_type * chord_type_weight
 
             # Interval to next chord (if exists)
             if i < num_chords - 1:

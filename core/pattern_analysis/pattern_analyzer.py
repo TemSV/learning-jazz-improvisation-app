@@ -2,7 +2,7 @@ from typing import List, Tuple, Dict, Optional
 import math
 import re # Import regex for splitting slash chords
 
-from .models import ChordInfo, ChordQuality, ChordPattern, ChordWithDuration
+from .models import ChordInfo, ChordQuality, ChordPattern, ChordWithDuration, CHORD_TYPE_TO_NUMERIC
 from .patterns import (HarmonicPattern, TwoFiveOnePattern, BluesPattern,
                        MinorTwoFiveOnePattern)
 
@@ -165,7 +165,10 @@ class PatternAnalyzer:
         else:
              return interval
 
-    def _compute_comparison_features(self, chords: List[ChordWithDuration], interval_weight: float = 3.0) -> Dict[str, float]:
+    def _compute_comparison_features(self, chords: List[ChordWithDuration],
+                                     interval_weight: float = 1.5,
+                                     chord_type_weight: float = 2.0,
+                                     chord_duration_weight: float = 2.0) -> Dict[str, float]:
         """
         Computes key-invariant features for comparison (for patterns or phrases).
         Focuses on relative durations, types, positions, and intervals.
@@ -184,11 +187,15 @@ class PatternAnalyzer:
 
         for i, chord_dur in enumerate(chords):
             features[f'feat_chord_{i}_position'] = i / num_chords if num_chords > 1 else 0
-            features[f'feat_chord_{i}_duration'] = chord_dur.duration / total_duration
+            
+            # Chord relative duration (with weight)
+            raw_duration_feature = chord_dur.duration / total_duration
+            features[f'feat_chord_{i}_duration'] = raw_duration_feature * chord_duration_weight
 
-            # Chord type uses the updated _get_chord_type
-            chord_type = self._get_chord_type(chord_dur.chord)
-            features[f'feat_chord_{i}_type'] = hash(chord_type) % 100 / 100.0
+            # Chord type uses the updated _get_chord_type and CHORD_TYPE_TO_NUMERIC (with weight)
+            chord_type_str = self._get_chord_type(chord_dur.chord)
+            numeric_chord_type = CHORD_TYPE_TO_NUMERIC.get(chord_type_str, CHORD_TYPE_TO_NUMERIC['unknown'])
+            features[f'feat_chord_{i}_type'] = numeric_chord_type * chord_type_weight
 
             # Interval uses the updated get_relative_interval
             if i < num_chords - 1:
