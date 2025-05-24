@@ -7,6 +7,9 @@ class ChordDuration(BaseModel):
     chord: str
     duration: float
 
+class OriginalChordRef(BaseModel):
+    original_bar_id: int
+
 # --- Song Related Schemas ---
 
 class SongInfo(BaseModel):

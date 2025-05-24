@@ -151,9 +151,32 @@ async def get_song_patterns(
         if not raw_song_chords_data:
             if not song_title:
                  raise HTTPException(status_code=404, detail=f"Song with id {song_id} not found.")
+            # If no raw chords, processed_song_chords is also empty.
             return SongPatternsResponse(
-                song_id=song_id, title=song_title, patterns=[]
+                song_id=song_id, title=song_title, processed_song_chords=[], patterns=[]
             )
+
+        # Prepare processed_song_chords for the response
+        processed_song_chords_for_response: List[ChordDuration] = []
+        for raw_bar in raw_song_chords_data:
+            # Assuming parse_bar_chord is available or defined in this scope
+            # For now, let's assume it's part of the parser or we need to import/define it
+            # Temporarily, we'll use a placeholder logic for splitting chords if parse_bar_chord is not in scope
+            
+            bar_chord_texts = []
+            if raw_bar.chords and raw_bar.chords.strip():
+                bar_chord_texts = raw_bar.chords.strip().split()
+
+            if bar_chord_texts:
+                beats_in_bar = get_beats_per_bar(raw_bar.signature)
+                duration_per_chord = beats_in_bar / len(bar_chord_texts)
+                for chord_text in bar_chord_texts:
+                    processed_song_chords_for_response.append(
+                        ChordDuration(chord=chord_text, duration=duration_per_chord)
+                    )
+            # If a bar has no chords, it contributes nothing to processed_song_chords,
+            # as ChordDuration requires a chord string. Or it could be a rest.
+            # For now, skipping empty bars in processed_song_chords.
 
         parsed_chords_for_analysis: List[Tuple[int, List[str]]] = parser.parse_song_chords(song_id)
         found_patterns_raw: List[ChordPattern] = analyzer.find_patterns(parsed_chords_for_analysis)
@@ -188,8 +211,8 @@ async def get_song_patterns(
                     raw_bar = raw_song_chords_data[current_raw_bar_idx]
                     actual_beats_in_raw_bar = float(get_beats_per_bar(raw_bar.signature))
                     
-                    if not original_refs_for_pattern or original_refs_for_pattern[-1].barid != raw_bar.barid:
-                        original_refs_for_pattern.append(OriginalChordRef(barid=raw_bar.barid))
+                    if not original_refs_for_pattern or original_refs_for_pattern[-1].original_bar_id != raw_bar.barid:
+                        original_refs_for_pattern.append(OriginalChordRef(original_bar_id=raw_bar.barid))
 
                     beats_available_to_consume_in_raw_bar = actual_beats_in_raw_bar - beats_consumed_in_current_raw_bar
                     beats_to_consume_this_iteration = min(beats_to_assign_for_this_pattern_chord, beats_available_to_consume_in_raw_bar)
@@ -205,7 +228,8 @@ async def get_song_patterns(
                 patterns_response.append(
                     PatternInfo(
                         type=p_model.pattern_type, key=p_model.key,
-                        original_chord_refs=original_refs_for_pattern,
+                        start_index=p_model.start_bar,
+                        end_index=p_model.start_bar + len(p_model.chords) - 1,
                         chords=[ChordDuration(chord=c.chord, duration=c.duration) for c in p_model.chords],
                         features=p_model.features
                     )
@@ -214,6 +238,7 @@ async def get_song_patterns(
         return SongPatternsResponse(
             song_id=song_id,
             title=song_title,
+            processed_song_chords=processed_song_chords_for_response,
             patterns=patterns_response
         )
     except HTTPException as http_exc:
