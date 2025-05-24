@@ -1,22 +1,29 @@
 import sqlite3
 from fastapi import APIRouter, Depends, HTTPException, Query
-from typing import List, Dict, Optional
+from typing import List, Dict, Optional, Tuple
 
 from ..schemas import (
     SongListResponse, SongChordsResponse, SongInfo, SongChordEntry,
-    PatternInfo, SongPatternsResponse, ChordDuration
+    PatternInfo, SongPatternsResponse, ChordDuration, OriginalChordRef
 )
 
 from ..dependencies import get_db_path, get_chord_parser, get_pattern_analyzer
-from core.pattern_analysis.parser import DatabaseChordParser
+from core.pattern_analysis.parser import DatabaseChordParser, SongChord
 from core.pattern_analysis.pattern_analyzer import PatternAnalyzer
-from core.pattern_analysis.models import ChordWithDuration as ModelChordWithDuration
+from core.pattern_analysis.models import ChordWithDuration as ModelChordWithDuration, ChordPattern
 import core.pattern_analysis.models
 
 router = APIRouter(
     prefix="/api/songs",
     tags=["Songs"],
 )
+
+def get_beats_per_bar(signature: Optional[str]) -> int:
+    if signature:
+        if signature == "4/4": return 4
+        if signature == "3/4": return 3
+        if signature == "2/4": return 2
+    return 4 
 
 @router.get("", response_model=SongListResponse)
 async def get_song_list(
@@ -43,7 +50,7 @@ async def get_song_list(
             where_clause = " WHERE title LIKE ?"
             count_query += where_clause
             base_query += where_clause
-            params_list.append(f"%{search}%")
+            params_list.append(f"%{search}%\u0025")
 
         cursor.execute(count_query, params_list)
         count_result = cursor.fetchone()
@@ -88,7 +95,7 @@ async def get_song_chords(
 
         cursor.execute("""
             SELECT barid, bar, signature, chords, form
-            FROM song_chords WHERE songid = ? ORDER BY barid ASC
+            FROM song_chords WHERE songid = ? ORDER BY bar ASC
         """, (song_id,))
         rows = cursor.fetchall()
 
@@ -140,42 +147,73 @@ async def get_song_patterns(
 
     # 2. Parse song chords and analyze patterns using dependencies
     try:
-        chords_by_bar_raw = parser.parse_song_chords(song_id)
-        if not chords_by_bar_raw:
+        raw_song_chords_data: List[SongChord] = parser.get_song_chords(song_id)
+        if not raw_song_chords_data:
             if not song_title:
                  raise HTTPException(status_code=404, detail=f"Song with id {song_id} not found.")
             return SongPatternsResponse(
-                song_id=song_id, title=song_title,
-                processed_song_chords=[], patterns=[]
+                song_id=song_id, title=song_title, patterns=[]
             )
 
-        processed_song_chords_list: List[ModelChordWithDuration] = analyzer._process_chord_sequence(chords_by_bar_raw)
-        found_patterns_raw: List[core.pattern_analysis.models.ChordPattern] = analyzer.find_patterns(chords_by_bar_raw)
+        parsed_chords_for_analysis: List[Tuple[int, List[str]]] = parser.parse_song_chords(song_id)
+        found_patterns_raw: List[ChordPattern] = analyzer.find_patterns(parsed_chords_for_analysis)
 
         patterns_response: List[PatternInfo] = []
         for p_model in found_patterns_raw:
-            start_idx = p_model.start_bar
-            end_idx = start_idx + len(p_model.chords) - 1
-            if start_idx < len(processed_song_chords_list) and end_idx < len(processed_song_chords_list):
+            original_refs_for_pattern: List[OriginalChordRef] = []
+            
+            if p_model.start_bar < 0 or p_model.start_bar >= len(parsed_chords_for_analysis):
+                print(f"Warning: Pattern start_bar index {p_model.start_bar} out of bounds for parsed_chords_for_analysis (len {len(parsed_chords_for_analysis)}) for song {song_id}, pattern {p_model.pattern_type}")
+                continue
+
+            start_original_bar_number = parsed_chords_for_analysis[p_model.start_bar][0]
+            
+            initial_raw_bar_idx = -1
+            for i, r_bar in enumerate(raw_song_chords_data):
+                if r_bar.bar == start_original_bar_number:
+                    initial_raw_bar_idx = i
+                    break
+            
+            if initial_raw_bar_idx == -1:
+                print(f"Warning: Could not find starting raw bar for pattern in song {song_id}, pattern {p_model.pattern_type}, start_bar_num {start_original_bar_number}")
+                continue
+
+            current_raw_bar_idx = initial_raw_bar_idx
+            beats_consumed_in_current_raw_bar = 0.0
+
+            for pattern_norm_chord in p_model.chords:
+                beats_to_assign_for_this_pattern_chord = float(pattern_norm_chord.duration)
+                
+                while beats_to_assign_for_this_pattern_chord > 1e-6 and current_raw_bar_idx < len(raw_song_chords_data):
+                    raw_bar = raw_song_chords_data[current_raw_bar_idx]
+                    actual_beats_in_raw_bar = float(get_beats_per_bar(raw_bar.signature))
+                    
+                    if not original_refs_for_pattern or original_refs_for_pattern[-1].barid != raw_bar.barid:
+                        original_refs_for_pattern.append(OriginalChordRef(barid=raw_bar.barid))
+
+                    beats_available_to_consume_in_raw_bar = actual_beats_in_raw_bar - beats_consumed_in_current_raw_bar
+                    beats_to_consume_this_iteration = min(beats_to_assign_for_this_pattern_chord, beats_available_to_consume_in_raw_bar)
+
+                    beats_to_assign_for_this_pattern_chord -= beats_to_consume_this_iteration
+                    beats_consumed_in_current_raw_bar += beats_to_consume_this_iteration
+
+                    if beats_consumed_in_current_raw_bar >= actual_beats_in_raw_bar - 1e-6:
+                        current_raw_bar_idx += 1
+                        beats_consumed_in_current_raw_bar = 0.0
+            
+            if original_refs_for_pattern:
                 patterns_response.append(
                     PatternInfo(
                         type=p_model.pattern_type, key=p_model.key,
-                        start_index=start_idx, end_index=end_idx,
+                        original_chord_refs=original_refs_for_pattern,
                         chords=[ChordDuration(chord=c.chord, duration=c.duration) for c in p_model.chords],
                         features=p_model.features
                     )
                 )
-            else:
-                print(f"Warning: Pattern indices [{start_idx}-{end_idx}] out of bounds for processed song chords (len {len(processed_song_chords_list)}) for song {song_id}, pattern {p_model.pattern_type}")
-
-        processed_chords_for_response = [
-            ChordDuration(chord=c.chord, duration=c.duration) for c in processed_song_chords_list
-        ]
 
         return SongPatternsResponse(
             song_id=song_id,
             title=song_title,
-            processed_song_chords=processed_chords_for_response,
             patterns=patterns_response
         )
     except HTTPException as http_exc:
