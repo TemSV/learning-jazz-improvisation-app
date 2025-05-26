@@ -38,10 +38,8 @@ class SongChordsResponse(BaseModel):
 class PatternInfo(BaseModel):
     type: str
     key: str | None = None
-    # Removed start_index and end_index
-    # New field to reference original chords
     original_chord_refs: List[OriginalChordRef] = Field(description="References to the original chords/bars that form this pattern")
-    chords: List[ChordDuration] # Chords of the pattern itself (normalized)
+    chords: List[ChordDuration]
     features: Dict[str, float] = Field(description="Features dict for this pattern instance")
 
 class SongPatternsResponse(BaseModel):
@@ -68,3 +66,35 @@ class RecommendedPhrase(BaseModel):
 
 class RecommendationResponse(BaseModel):
     recommendations: List[RecommendedPhrase]
+
+class NoteData(BaseModel):
+    pitch: int
+    onset: float
+    duration: float
+    loud_med: Optional[float] = None
+    f0_med_dev: Optional[float] = None
+
+    class Config:
+        from_attributes = True
+
+
+class PhraseAnalysisDB(BaseModel):
+    melid: int
+    start_note_index: int
+    end_note_index: int
+    phrase_value: str
+    processed_chords_json: str
+    features_json: str
+
+    class Config:
+        from_attributes = True
+
+
+class PatternDB(BaseModel):
+    pattern_name: str
+    key: str
+    chords_json: str
+    features_json: str
+
+    class Config:
+        from_attributes = True

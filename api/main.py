@@ -1,5 +1,5 @@
 from fastapi import FastAPI
-from .routes import songs, recommendations
+from .routes import songs, recommendations, phrases
 
 import uvicorn
 
@@ -11,7 +11,8 @@ app = FastAPI(
 
 
 app.include_router(songs.router)
-app.include_router(recommendations.router) 
+app.include_router(recommendations.router)
+app.include_router(phrases.router)
 
 @app.get("/api/health", tags=["Health"])
 async def health_check():

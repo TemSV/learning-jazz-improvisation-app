@@ -15,7 +15,6 @@ CHORD_DURATION_WEIGHT = 2.0
 COMMIT_INTERVAL = 500
 
 def serialize_processed_chords(chords: List[ChordWithDuration]) -> str:
-    """Преобразует список ChordWithDuration в JSON-строку."""
     serializable_list = [{'chord': c.chord, 'duration': c.duration} for c in chords]
     return json.dumps(serializable_list)
 
