@@ -11,7 +11,7 @@ app = FastAPI(
 
 
 app.include_router(songs.router)
-app.include_router(recommendations.router)
+app.include_router(recommendations.router) 
 app.include_router(phrases.router)
 
 @app.get("/api/health", tags=["Health"])

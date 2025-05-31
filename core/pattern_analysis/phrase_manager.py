@@ -2,10 +2,9 @@ import sqlite3
 import json
 from typing import List, Dict, Tuple, Optional, Any
 from dataclasses import dataclass, field
-import math
 
 from .pattern_analyzer import PatternAnalyzer
-from .models import ChordPattern, ChordWithDuration, BeatInfo, PhraseSectionInfo, PhraseInfo, CHORD_TYPE_TO_NUMERIC
+from .models import ChordPattern, ChordWithDuration, BeatInfo, PhraseSectionInfo, PhraseInfo
 
 
 class PhraseManager:
@@ -273,83 +272,13 @@ class PhraseManager:
                                 interval_weight: float = 1.5,
                                 chord_type_weight: float = 2.0,
                                 chord_duration_weight: float = 2.0) -> Dict[str, float]:
-        """
-        Computes key-invariant features for the phrase, mirroring
-        PatternAnalyzer._compute_comparison_features logic including interval normalization.
-        """
-        features = {}
-        if not phrase_chords:
-            return features
-
-        total_duration = sum(c.duration for c in phrase_chords)
-        if total_duration <= 0:
-            return features
-
-        num_chords = len(phrase_chords)
-        # Use same normalization as in PatternAnalyzer
-        features['feat_num_chords'] = num_chords / 10.0
-        features['feat_total_duration'] = total_duration / 20.0
-
-        for i, chord_dur in enumerate(phrase_chords):
-            # Chord position
-            features[f'feat_chord_{i}_position'] = i / num_chords if num_chords > 1 else 0
-
-            # Chord relative duration (with weight)
-            raw_duration_feature = chord_dur.duration / total_duration
-            features[f'feat_chord_{i}_duration'] = raw_duration_feature * chord_duration_weight
-
-            # Chord type (using analyzer's centralized method and mapping, with weight)
-            chord_type_str = self.pattern_analyzer._get_chord_type(chord_dur.chord)
-            numeric_chord_type = CHORD_TYPE_TO_NUMERIC.get(chord_type_str, CHORD_TYPE_TO_NUMERIC['unknown'])
-            features[f'feat_chord_{i}_type'] = numeric_chord_type * chord_type_weight
-
-            # Interval to next chord (if exists)
-            if i < num_chords - 1:
-                interval = self.pattern_analyzer.get_relative_interval(chord_dur.chord, phrase_chords[i+1].chord)
-                # Use same interval feature calculation as in PatternAnalyzer
-                interval_feature_normalized = 0.5 # Default for None interval
-                if interval is not None:
-                     # Normalize interval from range [-5, 6] to [0, 1]
-                     normalized_interval = (interval + 5.0) / 11.0
-                     interval_feature_normalized = max(0.0, min(1.0, normalized_interval))
-                # Apply weight
-                features[f'feat_interval_{i}'] = interval_feature_normalized * interval_weight
-
-        return features
-
-    def compute_similarity(self, features1: Dict[str, float], features2: Dict[str, float]) -> float:
-        """
-        Calculates cosine similarity between two feature vectors (dictionaries).
-        Handles potentially different sets of keys by using 0.0 for missing keys.
-        """
-        # Get all unique keys from both dictionaries
-        keys = set(features1.keys()) | set(features2.keys())
-
-        if not keys: # Avoid division by zero if both feature sets are empty
-             return 1.0 if not features1 and not features2 else 0.0
-
-        # Create vectors based on the union of keys, using 0.0 for missing values
-        vector1 = [features1.get(k, 0.0) for k in keys]
-        vector2 = [features2.get(k, 0.0) for k in keys]
-
-        # Calculate dot product
-        dot_product = sum(a * b for a, b in zip(vector1, vector2))
-
-        # Calculate magnitudes (norms)
-        norm1 = math.sqrt(sum(a * a for a in vector1))
-        norm2 = math.sqrt(sum(b * b for b in vector2))
-
-        # Calculate cosine similarity
-        if norm1 == 0.0 or norm2 == 0.0:
-            # If one vector is all zeros, similarity is 0 unless both are zeros
-            return 1.0 if norm1 == 0.0 and norm2 == 0.0 else 0.0
-        else:
-            similarity = dot_product / (norm1 * norm2)
-             # Clamp similarity to [0, 1] (or [-1, 1] if features aren't guaranteed non-negative)
-             # Cosine similarity is naturally in [-1, 1]. Given our hashing % 100 / 100.0, features are [0, 1).
-             # Clamping to [0, 1] seems reasonable.
-            return max(0.0, min(1.0, similarity))
-
+        # Delegate feature computation entirely to PatternAnalyzer
+        return self.pattern_analyzer._compute_comparison_features(
+            phrase_chords,
+            interval_weight=interval_weight,
+            chord_type_weight=chord_type_weight,
+            chord_duration_weight=chord_duration_weight
+        )
 
     def get_phrase_beats(self, section_id: int) -> List[BeatInfo] | None:
         """

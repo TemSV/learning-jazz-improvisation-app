@@ -9,6 +9,7 @@ from ..schemas import (
 
 from ..dependencies import get_phrase_manager, get_db_path
 from core.pattern_analysis.phrase_manager import PhraseManager
+from core.utils.similarity_utils import calculate_cosine_similarity
 
 router = APIRouter(
     prefix="/api/recommendations",
@@ -30,7 +31,6 @@ def deserialize_processed_chords(chords_json_str: str | None) -> List[ChordDurat
 @router.post("/phrases", response_model=RecommendationResponse)
 async def get_phrase_recommendations(
     request_data: RecommendationRequest = Body(...),
-    phrase_mgr: PhraseManager = Depends(get_phrase_manager),
     db_path: str = Depends(get_db_path)
 ):
     """
@@ -97,7 +97,7 @@ async def get_phrase_recommendations(
             calculation_errors += 1
             continue
         try:
-            similarity = phrase_mgr.compute_similarity(pattern_features, phrase_data["features"])
+            similarity = calculate_cosine_similarity(pattern_features, phrase_data["features"])
             all_similarities.append({
                 "melid": phrase_data["melid"],
                 "start_note_index": phrase_data["start_note_index"],

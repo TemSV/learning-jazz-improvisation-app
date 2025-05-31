@@ -7,6 +7,7 @@ from core.pattern_analysis.parser import DatabaseChordParser
 from core.pattern_analysis.pattern_analyzer import PatternAnalyzer
 from core.pattern_analysis.phrase_manager import PhraseManager, PhraseInfo
 from core.pattern_analysis.models import ChordPattern, ChordWithDuration
+from core.utils.similarity_utils import calculate_cosine_similarity
 
 DB_PATH = r"C:\polytech\Diploma\wjazzd.db"
 SONG_ID_TO_ANALYZE = 3
@@ -89,7 +90,6 @@ def main():
         print(f"  Start Index:{pattern.start_bar}")
         print(f"  Duration:   {pattern.total_duration:.2f} beats")
 
-
         if not pattern.features:
             print("  (Pattern has no features to compare)")
             continue
@@ -98,8 +98,7 @@ def main():
         for melid, start_idx, end_idx, phrase_features in preprocessed_phrases:
             if not phrase_features:
                 continue
-
-            similarity = phrase_mgr.compute_similarity(pattern.features, phrase_features)
+            similarity = calculate_cosine_similarity(pattern.features, phrase_features)
             pattern_similarities.append( (melid, start_idx, end_idx, similarity) )
 
         pattern_similarities.sort(key=lambda item: item[3], reverse=True)
