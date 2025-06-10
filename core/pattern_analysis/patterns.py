@@ -5,7 +5,7 @@ from .models import ChordPattern, ChordWithDuration, ChordQuality
 # Forward declaration for type hinting PatternAnalyzer
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
-    from .pattern_analyzer import PatternAnalyzer
+    from .harmony_analyzer import HarmonyAnalyzer
 
 class HarmonicPattern(ABC):
     """Base class for all harmonic patterns"""
@@ -14,7 +14,7 @@ class HarmonicPattern(ABC):
         self.pattern_type: str = self.__class__.__name__
     
     @abstractmethod
-    def match(self, chords: List[ChordWithDuration], analyzer: 'PatternAnalyzer') -> bool:
+    def match(self, chords: List[ChordWithDuration], analyzer: 'HarmonyAnalyzer') -> bool:
         """Checks if the chord sequence matches the pattern"""
         pass
     
@@ -45,7 +45,7 @@ class TwoFiveOnePattern(HarmonicPattern):
     def get_window_size(self) -> int:
         return 3
     
-    def match(self, chords: List[ChordWithDuration], analyzer: 'PatternAnalyzer') -> bool:
+    def match(self, chords: List[ChordWithDuration], analyzer: 'HarmonyAnalyzer') -> bool:
         if len(chords) != 3:
             return False
             
@@ -85,7 +85,7 @@ class MinorTwoFiveOnePattern(HarmonicPattern):
     def get_window_size(self) -> int:
         return 3
 
-    def match(self, chords: List[ChordWithDuration], analyzer: 'PatternAnalyzer') -> bool:
+    def match(self, chords: List[ChordWithDuration], analyzer: 'HarmonyAnalyzer') -> bool:
         if len(chords) != 3:
             return False
 
@@ -129,7 +129,7 @@ class BluesPattern(HarmonicPattern):
     def get_window_size(self) -> int:
         return 3
     
-    def match(self, chords: List[ChordWithDuration], analyzer: 'PatternAnalyzer') -> bool:
+    def match(self, chords: List[ChordWithDuration], analyzer: 'HarmonyAnalyzer') -> bool:
         if len(chords) != 3:
             return False
             

@@ -1,7 +1,7 @@
 import os
 from functools import lru_cache
 from core.pattern_analysis.parser import DatabaseChordParser
-from core.pattern_analysis.pattern_analyzer import PatternAnalyzer
+from core.pattern_analysis.harmony_analyzer import HarmonyAnalyzer
 from core.pattern_analysis.phrase_manager import PhraseManager
 from fastapi import Depends
 
@@ -19,9 +19,9 @@ def get_db_path() -> str:
     return DB_PATH
 
 @lru_cache()
-def get_pattern_analyzer() -> PatternAnalyzer:
+def get_pattern_analyzer() -> HarmonyAnalyzer:
     print("Initializing PatternAnalyzer singleton...")
-    return PatternAnalyzer()
+    return HarmonyAnalyzer()
 
 @lru_cache()
 def get_chord_parser() -> DatabaseChordParser:
@@ -31,8 +31,8 @@ def get_chord_parser() -> DatabaseChordParser:
 
 @lru_cache()
 def get_phrase_manager(
-    analyzer: PatternAnalyzer = Depends(get_pattern_analyzer)
+    analyzer: HarmonyAnalyzer = Depends(get_pattern_analyzer)
 ) -> PhraseManager:
     print("Initializing PhraseManager singleton...")
     resolved_db_path = get_db_path()
-    return PhraseManager(db_path=resolved_db_path, pattern_analyzer=analyzer)
+    return PhraseManager(db_path=resolved_db_path, harmony_analyzer=analyzer)

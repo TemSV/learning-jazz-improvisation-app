@@ -4,7 +4,7 @@ import time
 from typing import List, Dict, Tuple, Any
 
 from core.pattern_analysis.parser import DatabaseChordParser
-from core.pattern_analysis.pattern_analyzer import PatternAnalyzer
+from core.pattern_analysis.harmony_analyzer import HarmonyAnalyzer
 from core.pattern_analysis.phrase_manager import PhraseManager, PhraseInfo
 from core.pattern_analysis.models import ChordPattern, ChordWithDuration
 from core.utils.similarity_utils import calculate_cosine_similarity
@@ -17,7 +17,7 @@ def main():
     print("Initializing components...")
     start_time = time.time()
     parser = DatabaseChordParser(DB_PATH)
-    analyzer = PatternAnalyzer()
+    analyzer = HarmonyAnalyzer()
     phrase_mgr = PhraseManager(DB_PATH, analyzer)
     init_time = time.time()
     print(f"Initialization took {init_time - start_time:.2f} seconds.")

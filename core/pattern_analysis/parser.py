@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from typing import List, Tuple
 
 from .models import ChordPattern
-from .pattern_analyzer import PatternAnalyzer
+from .harmony_analyzer import HarmonyAnalyzer
 
 
 @dataclass
@@ -30,7 +30,7 @@ class DatabaseChordParser:
     def __init__(self, db_path: str):
         self.db_path = db_path
         self.current_chord = None # Tracks the last chord seen for handling empty bars
-        self.pattern_analyzer = PatternAnalyzer()
+        self.pattern_analyzer = HarmonyAnalyzer()
 
     def get_song_signature(self, song_id: int) -> str | None:
         """

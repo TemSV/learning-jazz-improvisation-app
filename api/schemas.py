@@ -16,6 +16,8 @@ class OriginalChordRef(BaseModel):
 class SongInfo(BaseModel):
     id: int
     title: str | None = None
+    composer: str | None = None
+    song_key: str | None = None
 
 class SongListResponse(BaseModel):
     songs: List[SongInfo]

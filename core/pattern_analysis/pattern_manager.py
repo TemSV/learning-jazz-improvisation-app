@@ -6,7 +6,7 @@ from dataclasses import dataclass
 # Import DatabaseChordParser
 from .parser import DatabaseChordParser, parse_bar_chord # Import parse_bar_chord if needed elsewhere, or remove if fully encapsulated
 from .models import ChordPattern
-from .pattern_analyzer import PatternAnalyzer
+from .harmony_analyzer import HarmonyAnalyzer
 
 
 @dataclass
@@ -25,7 +25,7 @@ class PatternManager:
     def __init__(self, db_path: str, parser: DatabaseChordParser):
         self.db_path = db_path
         self.parser = parser # Store the parser instance
-        self.pattern_analyzer = PatternAnalyzer()
+        self.pattern_analyzer = HarmonyAnalyzer()
 
     def initialize_database(self):
         """Creates necessary tables in the database"""

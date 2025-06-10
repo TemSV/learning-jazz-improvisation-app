@@ -3,23 +3,23 @@ import json
 from typing import List, Dict, Tuple, Optional, Any
 from dataclasses import dataclass, field
 
-from .pattern_analyzer import PatternAnalyzer
+from .harmony_analyzer import HarmonyAnalyzer
 from .models import ChordPattern, ChordWithDuration, BeatInfo, PhraseSectionInfo, PhraseInfo
 
 
 class PhraseManager:
     """Manages retrieval and processing of musical phrases."""
 
-    def __init__(self, db_path: str, pattern_analyzer: PatternAnalyzer):
+    def __init__(self, db_path: str, harmony_analyzer: HarmonyAnalyzer):
         """
         Initializes the PhraseManager.
 
         Args:
             db_path: Path to the SQLite database file.
-            pattern_analyzer: An instance of PatternAnalyzer for analyzing chords.
+            harmony_analyzer: An instance of HarmonyAnalyzer for analyzing chords.
         """
         self.db_path = db_path
-        self.pattern_analyzer = pattern_analyzer
+        self.harmony_analyzer = harmony_analyzer
 
     def _get_phrase_onset_range(self, melid: int, start_note_index: int, end_note_index: int) -> Tuple[Optional[float], Optional[float]]:
         """
@@ -128,7 +128,7 @@ class PhraseManager:
         """
         Retrieves the chord sequence for a given phrase from the 'beats' table.
         Requires phrase.start_onset and phrase.end_onset to be populated.
-        Returns data in the format required by PatternAnalyzer: List[(bar_num, [chords])].
+        Returns data in the format required by HarmonyAnalyzer: List[(bar_num, [chords])].
         Handles propagation of chords for bars without explicit chord changes within the phrase.
         """
         if phrase.start_onset is None or phrase.end_onset is None:
@@ -246,7 +246,7 @@ class PhraseManager:
         """
         Gets the raw chord sequence for a phrase and processes it into a list of
         ChordWithDuration, merging consecutive identical chords and calculating durations.
-        Uses PatternAnalyzer._process_chord_sequence logic.
+        Uses HarmonyAnalyzer.process_chord_sequence logic.
 
         Args:
             phrase: The PhraseInfo object (must have onsets calculated).
@@ -261,10 +261,10 @@ class PhraseManager:
 
         try:
              # Ensure the analyzer's process method is robust
-             processed_chords = self.pattern_analyzer._process_chord_sequence(raw_sequence)
+             processed_chords = self.harmony_analyzer.process_chord_sequence(raw_sequence)
              return processed_chords
         except Exception as e:
-             print(f"Error processing chord sequence for phrase {phrase.melid} with PatternAnalyzer: {e}")
+             print(f"Error processing chord sequence for phrase {phrase.melid} with HarmonyAnalyzer: {e}")
              return []
 
 
@@ -272,8 +272,8 @@ class PhraseManager:
                                 interval_weight: float = 1.5,
                                 chord_type_weight: float = 2.0,
                                 chord_duration_weight: float = 2.0) -> Dict[str, float]:
-        # Delegate feature computation entirely to PatternAnalyzer
-        return self.pattern_analyzer._compute_comparison_features(
+        # Delegate feature computation entirely to HarmonyAnalyzer
+        return self.harmony_analyzer.compute_comparison_features(
             phrase_chords,
             interval_weight=interval_weight,
             chord_type_weight=chord_type_weight,
@@ -327,7 +327,7 @@ class PhraseManager:
     def format_beats_for_analyzer(self, phrase_beats: List[BeatInfo]) -> List[Tuple[int, List[str]]]:
         """
         Formats a list of BeatInfo objects into the List[Tuple[int, List[str]]]
-        structure required by PatternAnalyzer. Handles chord propagation for empty bars.
+        structure required by HarmonyAnalyzer. Handles chord propagation for empty bars.
 
         Args:
             phrase_beats: A list of BeatInfo objects for the phrase, ordered by onset.
@@ -382,7 +382,7 @@ class PhraseManager:
     def get_phrase_chord_sequence_for_analysis(self, section_id: int) -> List[Tuple[int, List[str]]] | None:
         """
         High-level method to get the chord sequence of a phrase formatted
-        for the PatternAnalyzer.
+        for the HarmonyAnalyzer.
 
         Args:
             section_id: The unique ID of the section in the 'sections' table.

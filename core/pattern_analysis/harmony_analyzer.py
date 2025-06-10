@@ -1,6 +1,6 @@
 from typing import List, Tuple, Dict, Optional
 import math
-import re # Import regex for splitting slash chords
+import re
 
 from .models import ChordInfo, ChordQuality, ChordPattern, ChordWithDuration, CHORD_TYPE_TO_NUMERIC
 from .patterns import (HarmonicPattern, TwoFiveOnePattern, BluesPattern,
@@ -8,7 +8,7 @@ from .patterns import (HarmonicPattern, TwoFiveOnePattern, BluesPattern,
 from ..utils.similarity_utils import calculate_harmonic_features
 
 
-class PatternAnalyzer:
+class HarmonyAnalyzer:
     def __init__(self):
         self.note_values = {
             'C': 0, 'C#': 1, 'Db': 1,
@@ -152,12 +152,12 @@ class PatternAnalyzer:
         else:
              return interval
 
-    def _compute_comparison_features(self, chords_with_duration: List[ChordWithDuration],
-                                     interval_weight: float = 1.5,
-                                     chord_type_weight: float = 2.0,
-                                     chord_duration_weight: float = 2.0) -> Dict[str, float]:
+    def compute_comparison_features(self, chords_with_duration: List[ChordWithDuration],
+                                    interval_weight: float = 1.5,
+                                    chord_type_weight: float = 2.0,
+                                    chord_duration_weight: float = 2.0) -> Dict[str, float]:
         if not chords_with_duration:
-            return {}
+            return {}   
 
         # 1. Pre-calculate chord types and relative intervals
         chord_type_strs: List[str] = []
@@ -168,8 +168,7 @@ class PatternAnalyzer:
         for i in range(len(chords_with_duration) - 1):
             interval = self.get_relative_interval(chords_with_duration[i].chord, chords_with_duration[i+1].chord)
             relative_intervals.append(interval)
-        # For the last chord, there's no next interval, so we can append None or handle list size in calculate_harmonic_features
-        # The calculate_harmonic_features function already handles i < num_chords - 1 for intervals.
+
 
         # 2. Call the centralized feature calculation function
         return calculate_harmonic_features(
@@ -185,7 +184,7 @@ class PatternAnalyzer:
         """
         Finds all registered patterns, computes comparison features, and returns ChordPattern objects.
         """
-        chords_with_duration = self._process_chord_sequence(chord_sequence)
+        chords_with_duration = self.process_chord_sequence(chord_sequence)
         if not chords_with_duration: return []
 
         found_patterns = []
@@ -199,12 +198,12 @@ class PatternAnalyzer:
                
                 if pattern_def.match(window, self):
                     pattern_obj = pattern_def.create_pattern(window, i)
-                    pattern_obj.features = self._compute_comparison_features(pattern_obj.chords)
+                    pattern_obj.features = self.compute_comparison_features(pattern_obj.chords)
                     found_patterns.append(pattern_obj)
 
         return found_patterns
 
-    def _process_chord_sequence(self, chord_sequence: List[Tuple[int, List[str]]]) -> List[ChordWithDuration]:
+    def process_chord_sequence(self, chord_sequence: List[Tuple[int, List[str]]]) -> List[ChordWithDuration]:
         raw_chords_with_duration = []
         current_chord_str = None
         current_duration = 0.0

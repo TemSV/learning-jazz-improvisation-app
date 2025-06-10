@@ -9,7 +9,7 @@ from ..schemas import (
 
 from ..dependencies import get_db_path, get_chord_parser, get_pattern_analyzer
 from core.pattern_analysis.parser import DatabaseChordParser, SongChord
-from core.pattern_analysis.pattern_analyzer import PatternAnalyzer
+from core.pattern_analysis.harmony_analyzer import HarmonyAnalyzer
 from core.pattern_analysis.models import ChordWithDuration as ModelChordWithDuration, ChordPattern
 import core.pattern_analysis.models
 
@@ -44,7 +44,7 @@ async def get_song_list(
         cursor = conn.cursor()
 
         count_query = "SELECT COUNT(songid) FROM song"
-        base_query = "SELECT songid, title FROM song"
+        base_query = "SELECT songid, title, composer, song_key FROM song"
         params_list = []
 
         if search:
@@ -61,7 +61,7 @@ async def get_song_list(
         params_list.extend([limit, offset])
         cursor.execute(query, params_list)
         rows = cursor.fetchall()
-        songs = [SongInfo(id=row["songid"], title=row["title"]) for row in rows]
+        songs = [SongInfo(id=row["songid"], title=row["title"], composer=row["composer"], song_key=row["song_key"]) for row in rows]
 
     except sqlite3.Error as e:
         print(f"Database error fetching song list: {e}")
@@ -123,7 +123,7 @@ async def get_song_chords(
 async def get_song_patterns(
     song_id: int,
     parser: DatabaseChordParser = Depends(get_chord_parser),
-    analyzer: PatternAnalyzer = Depends(get_pattern_analyzer)
+    analyzer: HarmonyAnalyzer = Depends(get_pattern_analyzer)
 ):
     """Analyzes song chords and returns detected patterns."""
     print(f"Analyzing patterns for song_id: {song_id}")

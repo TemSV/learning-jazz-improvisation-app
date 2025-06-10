@@ -3,7 +3,7 @@ import json
 import time
 from typing import List, Dict, Tuple, Any
 
-from core.pattern_analysis.pattern_analyzer import PatternAnalyzer
+from core.pattern_analysis.harmony_analyzer import HarmonyAnalyzer
 from core.pattern_analysis.phrase_manager import PhraseManager, PhraseInfo
 from core.pattern_analysis.models import ChordWithDuration
 
@@ -23,7 +23,7 @@ def main():
     start_script_time = time.time()
 
     print("Initializing components...")
-    analyzer = PatternAnalyzer()
+    analyzer = HarmonyAnalyzer()
     phrase_mgr = PhraseManager(DB_PATH, analyzer)
 
     conn = None
