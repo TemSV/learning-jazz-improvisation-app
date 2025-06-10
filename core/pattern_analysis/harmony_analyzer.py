@@ -197,76 +197,75 @@ class HarmonyAnalyzer:
                 window = chords_with_duration[i:i + window_size]
                
                 if pattern_def.match(window, self):
-                    pattern_obj = pattern_def.create_pattern(window, i)
+                    # The start_bar should be the original index from the first chord in the window
+                    original_start_index = window[0].start_bar_index
+                    pattern_obj = pattern_def.create_pattern(window, original_start_index)
                     pattern_obj.features = self.compute_comparison_features(pattern_obj.chords)
                     found_patterns.append(pattern_obj)
 
         return found_patterns
 
     def process_chord_sequence(self, chord_sequence: List[Tuple[int, List[str]]]) -> List[ChordWithDuration]:
+        if not chord_sequence:
+            return []
+
         raw_chords_with_duration = []
-        current_chord_str = None
-        current_duration = 0.0
         beats_per_bar = 4.0
 
-        last_bar_num = -1
-        if chord_sequence:
-             last_bar_num = chord_sequence[-1][0]
-
-        bar_map = {bar_num: bar_chords for bar_num, bar_chords in chord_sequence}
+        last_bar_num = chord_sequence[-1][0] if chord_sequence else -1
         start_bar = chord_sequence[0][0] if chord_sequence else 0
 
+        bar_map = {bar_num: bar_chords for bar_num, bar_chords in chord_sequence}
+        # Create a map from bar number to original sequence index
+        index_map = {bar_num: i for i, (bar_num, _) in enumerate(chord_sequence)}
 
         active_chord = None
         active_chord_start_time = 0.0
+        active_chord_start_bar_index = -1 # Track start index of the active chord
         current_time = 0.0
 
         for bar_num in range(start_bar, last_bar_num + 1):
             bar_start_time = (bar_num - start_bar) * beats_per_bar
             bar_chords = bar_map.get(bar_num, [])
+            # Get the original index for the current bar
+            current_bar_index = index_map.get(bar_num, -1)
 
             if not bar_chords:
-                 if active_chord:
-                      pass
-                 current_time = bar_start_time + beats_per_bar
-            else:
-                 beats_per_chord_in_bar = beats_per_bar / len(bar_chords)
-                 for i, chord_str in enumerate(bar_chords):
-                     chord_start_time_in_bar = i * beats_per_chord_in_bar
-                     current_chord_time = bar_start_time + chord_start_time_in_bar
+                # This empty bar just extends the duration of the active chord.
+                current_time = bar_start_time + beats_per_bar
+                continue
 
-                     if active_chord and chord_str != active_chord:
-                          duration = current_chord_time - active_chord_start_time
-                          if duration > 1e-6:
-                               raw_chords_with_duration.append(ChordWithDuration(active_chord, duration))
-                          active_chord = chord_str
-                          active_chord_start_time = current_chord_time
+            beats_per_chord_in_bar = beats_per_bar / len(bar_chords)
+            for i, chord_str in enumerate(bar_chords):
+                chord_start_time_in_bar = i * beats_per_chord_in_bar
+                current_chord_time = bar_start_time + chord_start_time_in_bar
 
-                     elif not active_chord:
-                          active_chord = chord_str
-                          active_chord_start_time = current_chord_time
+                if active_chord and chord_str != active_chord:
+                    duration = current_chord_time - active_chord_start_time
+                    if duration > 1e-6:
+                        raw_chords_with_duration.append(
+                            ChordWithDuration(active_chord, duration, active_chord_start_bar_index)
+                        )
+                    active_chord = chord_str
+                    active_chord_start_time = current_chord_time
+                    active_chord_start_bar_index = current_bar_index
 
-                 current_time = bar_start_time + beats_per_bar
+                elif not active_chord:
+                    active_chord = chord_str
+                    active_chord_start_time = current_chord_time
+                    active_chord_start_bar_index = current_bar_index
+            
+            current_time = bar_start_time + beats_per_bar
 
+        # After the loop, add the last active chord
         if active_chord:
-             end_time = (last_bar_num + 1 - start_bar) * beats_per_bar
-             duration = end_time - active_chord_start_time
-             if duration > 1e-6:
-                   raw_chords_with_duration.append(ChordWithDuration(active_chord, duration))
-
-        if not raw_chords_with_duration: return []
-        merged = []
-        if raw_chords_with_duration:
-            current = raw_chords_with_duration[0]
-            for next_chord in raw_chords_with_duration[1:]:
-                 if next_chord.chord == current.chord:
-                      current.duration += next_chord.duration
-                 else:
-                      merged.append(current)
-                      current = ChordWithDuration(next_chord.chord, next_chord.duration)
-            merged.append(current)
-
-        return merged
+            duration = current_time - active_chord_start_time
+            if duration > 1e-6:
+                raw_chords_with_duration.append(
+                    ChordWithDuration(active_chord, duration, active_chord_start_bar_index)
+                )
+        
+        return raw_chords_with_duration
 
     def _get_quality_part(self, chord: str) -> str:
         """Extracts the quality part of the chord string (after the root)."""

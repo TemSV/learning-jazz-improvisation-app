@@ -23,7 +23,6 @@ def get_beats_per_bar(signature: Optional[str]) -> int:
         if signature == "4/4": return 4
         if signature == "3/4": return 3
         if signature == "2/4": return 2
-        # Add more cases for other time signatures if necessary
     return 4 
 
 @router.get("", response_model=SongListResponse)
@@ -131,7 +130,6 @@ async def get_song_patterns(
     conn = None
     current_db_path_for_title = get_db_path()
 
-    # 1. Get song title
     try:
         conn = sqlite3.connect(current_db_path_for_title)
         conn.row_factory = sqlite3.Row
@@ -146,10 +144,7 @@ async def get_song_patterns(
         if conn:
             conn.close()
 
-    # 2. Parse song chords and analyze patterns using dependencies
     try:
-        # Get raw chords directly from the parser's method that fetches from DB
-        # This gives us the barid which is crucial for mapping back
         raw_song_chords_data: List[SongChord] = parser.get_song_chords(song_id)
         if not raw_song_chords_data:
             if not song_title:
@@ -158,31 +153,18 @@ async def get_song_patterns(
                 song_id=song_id, title=song_title, patterns=[]
             )
 
-        # Parse the raw chords into the format the analyzer expects for finding patterns
-        # This parsing handles empty bars and propagation, but the result structure still aligns with bars
         parsed_chords_for_analysis: List[Tuple[int, List[str]]] = parser.parse_song_chords(song_id)
 
-        # Analyze patterns using the parser's sequence
         found_patterns_raw: List[ChordPattern] = analyzer.find_patterns(parsed_chords_for_analysis)
 
         patterns_response: List[PatternInfo] = []
         for p_model in found_patterns_raw:
             original_refs_for_pattern: List[OriginalChordRef] = []
-            
-            if p_model.start_bar < 0 or p_model.start_bar >= len(parsed_chords_for_analysis):
-                print(f"Warning: Pattern start_bar index {p_model.start_bar} out of bounds for parsed_chords_for_analysis (len {len(parsed_chords_for_analysis)}) for song {song_id}, pattern {p_model.pattern_type}")
-                continue
 
-            start_original_bar_number = parsed_chords_for_analysis[p_model.start_bar][0]
-            
-            initial_raw_bar_idx = -1
-            for i, r_bar in enumerate(raw_song_chords_data):
-                if r_bar.bar == start_original_bar_number:
-                    initial_raw_bar_idx = i
-                    break
-            
-            if initial_raw_bar_idx == -1:
-                print(f"Warning: Could not find starting raw bar for pattern in song {song_id}, pattern {p_model.pattern_type}, start_bar_num {start_original_bar_number}")
+            initial_raw_bar_idx = p_model.start_bar
+
+            if initial_raw_bar_idx < 0 or initial_raw_bar_idx >= len(raw_song_chords_data):
+                print(f"Warning: Pattern start_bar index {initial_raw_bar_idx} out of bounds for raw_song_chords_data (len {len(raw_song_chords_data)}) for song {song_id}, pattern {p_model.pattern_type}")
                 continue
 
             current_raw_bar_idx = initial_raw_bar_idx
@@ -208,8 +190,7 @@ async def get_song_patterns(
                         current_raw_bar_idx += 1
                         beats_consumed_in_current_raw_bar = 0.0
             
-            if original_refs_for_pattern: # Only add pattern if it has references
-                patterns_response.append(
+            if original_refs_for_pattern:                patterns_response.append(
                     PatternInfo(
                         type=p_model.pattern_type, key=p_model.key,
                         original_chord_refs=original_refs_for_pattern,

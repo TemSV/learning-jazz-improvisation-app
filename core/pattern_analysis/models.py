@@ -50,6 +50,7 @@ class ChordInfo:
 class ChordWithDuration:
     chord: str
     duration: float
+    start_bar_index: int
 
 @dataclass
 class ChordPattern:
@@ -78,7 +79,7 @@ class ChordPattern:
     def from_dict(cls, data: Dict) -> 'ChordPattern':
         """Creates a pattern object from a dictionary"""
         chords_data = data.get('chords', [])
-        chords = [ChordWithDuration(chord, duration)
+        chords = [ChordWithDuration(chord, duration, 0)
                  for chord, duration in chords_data]
 
         pattern = cls(
