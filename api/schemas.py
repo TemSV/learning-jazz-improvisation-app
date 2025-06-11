@@ -65,6 +65,8 @@ class RecommendedPhrase(BaseModel):
     end_index: int = Field(alias="end_note_index")
     similarity: float
     chords: List[ChordDuration]
+    performer: Optional[str] = None
+    title: Optional[str] = None
 
 class RecommendationResponse(BaseModel):
     recommendations: List[RecommendedPhrase]

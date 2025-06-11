@@ -49,8 +49,10 @@ async def get_phrase_recommendations(
         conn = sqlite3.connect(db_path)
         cursor = conn.cursor()
         cursor.execute("""
-            SELECT melid, start_note_index, end_note_index, features_json, processed_chords_json
-            FROM phrase_analysis
+            SELECT pa.melid, pa.start_note_index, pa.end_note_index, pa.features_json, pa.processed_chords_json,
+                   si.performer, si.title
+            FROM phrase_analysis pa
+            JOIN solo_info si ON pa.melid = si.melid
         """)
         rows = cursor.fetchall()
 
@@ -64,7 +66,9 @@ async def get_phrase_recommendations(
                         "start_note_index": row[1],
                         "end_note_index": row[2],
                         "features": features_dict,
-                        "chords_json": row[4]
+                        "chords_json": row[4],
+                        "performer": row[5],
+                        "title": row[6]
                     })
                 else:
                     skipped_deserialize +=1
@@ -103,7 +107,9 @@ async def get_phrase_recommendations(
                 "start_note_index": phrase_data["start_note_index"],
                 "end_note_index": phrase_data["end_note_index"],
                 "similarity": similarity,
-                "chords_json": phrase_data["chords_json"]
+                "chords_json": phrase_data["chords_json"],
+                "performer": phrase_data["performer"],
+                "title": phrase_data["title"]
             })
         except Exception as e:
             print(f"Error computing similarity for MelID {phrase_data.get('melid')}: {e}")
@@ -126,7 +132,9 @@ async def get_phrase_recommendations(
             start_note_index=rec_data["start_note_index"],
             end_note_index=rec_data["end_note_index"],
             similarity=rec_data["similarity"],
-            chords=deserialized_chords
+            chords=deserialized_chords,
+            performer=rec_data["performer"],
+            title=rec_data["title"]
         ))
 
     return RecommendationResponse(recommendations=top_recommendations)

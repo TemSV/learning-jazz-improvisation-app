@@ -197,7 +197,6 @@ class HarmonyAnalyzer:
                 window = chords_with_duration[i:i + window_size]
                
                 if pattern_def.match(window, self):
-                    # The start_bar should be the original index from the first chord in the window
                     original_start_index = window[0].start_bar_index
                     pattern_obj = pattern_def.create_pattern(window, original_start_index)
                     pattern_obj.features = self.compute_comparison_features(pattern_obj.chords)
