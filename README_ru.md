@@ -32,9 +32,38 @@
 ## Архитектура приложения
 
 <p align="center">
-  <img src="assets/C4-container.drawio.png" alt="Рисунок 2. Диаграмма контейнеров системы" width="800">
+  <img src="assets/C4-container.drawio.png" alt="Диаграмма контейнеров системы" width="800"><br/>
+  Диаграмма контейнеров
 </p>
 
 <p align="center">
-  <img src="assets/C4-component.drawio.png" alt="Рисунок 3. Диаграмма компонентов системы" width="800">
+  <img src="assets/C4-component.drawio.png" alt="Диаграмма компонентов системы" width="800"><br/>
+  Диаграмма компонентов
 </p>
+
+## API
+- GET /api/songs  
+  Пагинированный список песен с поиском по названию.  
+  Параметры: `q` (опционально), `limit` (по умолчанию 20), `offset` (по умолчанию 0).  
+  Ответ: `{ total, items: [{ id, title }] }`.
+
+- GET /api/songs/{song_id}/chords  
+  Аккордовая последовательность песни.  
+  Параметры пути: `song_id` (обязателен).  
+  Ответ: `{ song_id, title, bars: [{ id, number, time_signature, chords, section }] }`.
+
+- GET /api/songs/{song_id}/patterns  
+  Найденные гармонические паттерны для песни.  
+  Параметры пути: `song_id` (обязателен).  
+  Ответ: `{ song_id, title, patterns: [{ type, key, bar_ids: [..], normalized_chords: [{ chord, duration }], features: [...] }] }`.
+
+- POST /api/recommendations/phrases  
+  Рекомендации фраз под заданный паттерн.  
+  Тело: `{ features: [...] }` (числовой вектор признаков паттерна).  
+  Ответ: `{ items: [{ melid, first_note_id, last_note_id, score, chords }] }`.
+
+- GET /api/phrases/{melid}/notes  
+  Ноты выбранной фразы для воспроизведения.  
+  Параметры пути: `melid` (обязателен).  
+  Параметры запроса: `first_note_id`, `last_note_id` (оба обязательны).  
+  Ответ: `{ notes: [{ pitch, onset, duration, loudness }] }`.
