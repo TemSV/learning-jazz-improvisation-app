@@ -32,9 +32,9 @@
 ## Архитектура приложения
 
 <p align="center">
-  <img src="assets/architecture/containers.png" alt="Рисунок 2. Диаграмма контейнеров системы" width="800">
+  <img src="assets/C4-container.drawio.png" alt="Рисунок 2. Диаграмма контейнеров системы" width="800">
 </p>
 
 <p align="center">
-  <img src="assets/architecture/components.png" alt="Рисунок 3. Диаграмма компонентов системы" width="800">
+  <img src="assets/C4-component.drawio.png" alt="Рисунок 3. Диаграмма компонентов системы" width="800">
 </p>
