@@ -116,3 +116,80 @@
 ```
 
 ## Запуск
+
+Требования:
+- Python 3.10+
+- macOS / Linux / Windows
+- Локальный путь к Weimar Jazz Database
+
+Установка:
+1) Клонирование и окружение
+`bash
+git clone https://github.com/TemSV/learning-jazz-improvisation-app.git
+cd learning-jazz-improvisation-app
+python -m venv .venv && source .venv/bin/activate  # Windows: .venv\Scripts\activate
+`
+
+2) Зависимости
+`bash
+pip install --upgrade pip
+pip install -r requirements.txt
+`
+
+3) Переменные окружения
+`bash
+export WJD_DATA_DIR=/path/to/weimar_jazz_database
+export APP_DB_URI=sqlite:///local.db         # либо строка подключения к вашей БД
+export API_HOST=0.0.0.0
+export API_PORT=8000
+`
+
+Запуск API‑сервера:
+1) Локально (Uvicorn/FastAPI)
+`bash
+uvicorn api.main:app --host ${API_HOST:-0.0.0.0} --port ${API_PORT:-8000} --reload
+`
+
+2) Документация
+Откройте http://localhost:8000/docs
+
+Подготовка данных и кэша фраз:
+1) Предобработка и заполнение кэша
+`bash
+python preprocess_phrases.py \
+  --data_dir "$WJD_DATA_DIR" \
+  --out_db local.db
+`
+
+2) Анализ/парсинг одной песни
+`bash
+python run_parser.py --song_id 123 --db_uri "$APP_DB_URI"
+`
+
+Обучение модели (Kaggle GPU, скрипты в core/ml/kaggle):
+1) Подготовка датасета и фичей
+`bash
+python core/ml/kaggle/prepare_kaggle_data.py \
+  --data_dir "$WJD_DATA_DIR" \
+  --out_dir core/ml/kaggle/cache
+`
+
+2) Обучение Bi‑LSTM + Self‑Attention
+`bash
+python core/ml/kaggle/train_kaggle_model.py \
+  --cache_dir core/ml/kaggle/cache \
+  --batch_size 64 --epochs 200 --lr 3e-4
+`
+
+3) Оценка на тесте
+`bash
+python core/ml/kaggle/evaluate_kaggle_model.py \
+  --cache_dir core/ml/kaggle/cache
+`
+
+4) Инференс сегментации фраз (пример)
+`bash
+python core/ml/kaggle/evaluate_kaggle_model.py \
+  --cache_dir core/ml/kaggle/cache \
+  --infer_sample /path/to/sample.csv
+`
