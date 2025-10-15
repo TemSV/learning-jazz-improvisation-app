@@ -193,3 +193,32 @@ python core/ml/kaggle/evaluate_kaggle_model.py \
   --cache_dir core/ml/kaggle/cache \
   --infer_sample /path/to/sample.csv
 `
+
+## Основные сценарии использования и скриншоты интерфейса
+
+Ниже описаны пользовательские сценарии с привязкой к API. 
+
+### Список композиций
+- При открытии экрана клиент запрашивает список песен: `GET /api/songs?q=<поиск>&limit=<N>&offset=<K>`.  
+- Ответ содержит `total` и `items[{ id, title }]`, список отображается из `items`.  
+- При прокрутке/поиске повторно вызывается тот же эндпоинт с обновлёнными параметрами.  
+![Список композиций — результат GET /api/songs](assets/screen1.png)
+
+### Аккордовая последовательность
+- По нажатию на песню загружается аккордовая сетка: `GET /api/songs/{song_id}/chords`.  
+- Ответ: `{ song_id, title, bars: [{ id, number, time_signature, chords, section }] }`, такты отображаются сеткой, секции формы и размеры берутся из `section` и `time_signature`.  
+![Аккордовая последовательность — результат GET /api/songs/{song_id}/chords](assets/screen2.png)
+
+### Паттерны в песне
+- По нажатию на кнопку поиска паттернов: `GET /api/songs/{song_id}/patterns`.  
+- В ответе `patterns[{ type, key, bar_ids, normalized_chords, features }]`; такты из `bar_ids` подсвечиваются, цвет зависит от `type`.  
+![Паттерны — результат GET /api/songs/{song_id}/patterns](assets/screen3.png)
+
+### Рекомендации фраз
+- При выборе такта формируется запрос: `POST /api/recommendations/phrases` с телом `{ features: [...] }` из выбранного паттерна.  
+- Ответ: `items[{ melid, first_note_id, last_note_id, score, chords }]`; список поддерживает дозагрузку следующей порции результатов.  
+![Рекомендации — результат POST /api/recommendations/phrases](assets/screen4.png)
+
+### Прослушивание фразы
+- По нажатию «Play» загружаются ноты фразы: `GET /api/phrases/{melid}/notes?first_note_id=<A>&last_note_id=<B>`.  
+- Ответ: `notes[{ pitch, onset, duration, loudness }]`, которые воспроизводятся встроенным плеером.  
