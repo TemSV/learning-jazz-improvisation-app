@@ -203,23 +203,27 @@ User scenarios are described with API mapping.
 - On screen open, client requests song list: `GET /api/songs?q=<search>&limit=<N>&offset=<K>`.
 - Response contains `total` and `items[{ id, title }]`, list is rendered from `items`.
 - On scroll/search, same endpoint is called with updated parameters.
+
 ![Song list — result of GET /api/songs](assets/screen1.png)
 
 ### Chord Sequence
 - On song tap, chord grid is loaded: `GET /api/songs/{song_id}/chords`.
 - Response: `{ song_id, title, bars: [{ id, number, time_signature, chords, section }] }`, bars are displayed in a grid, form sections and time signatures are taken from `section` and `time_signature`.
+
 ![Chord sequence — result of GET /api/songs/{song_id}/chords](assets/screen2.png)
 
 ### Patterns in Song
 - On pattern search button tap: `GET /api/songs/{song_id}/patterns`.
 - Response includes `patterns[{ type, key, bar_ids, normalized_chords, features }]`; bars from `bar_ids` are highlighted, color depends on `type`.
+
 ![Patterns — result of GET /api/songs/{song_id}/patterns](assets/screen3.png)
 
 ### Phrase Recommendations
 - On bar selection, a request is formed: `POST /api/recommendations/phrases` with body `{ features: [...] }` from the selected pattern.
 - Response: `items[{ melid, first_note_id, last_note_id, score, chords }]`; list supports loading next batch of results.
+
 ![Recommendations — result of POST /api/recommendations/phrases](assets/screen4.png)
 
 ### Phrase Playback
-- On "Play" tap, phrase notes are loaded: `GET /api/phrases/{melid}/notes?first_note_id=<A>&last_note_id=<B>Ы`.
+- On "Play" tap, phrase notes are loaded: `GET /api/phrases/{melid}/notes?first_note_id=<A>&last_note_id=<B>`.
 - Response: `notes[{ pitch, onset, duration, loudness }]`, which are played by the built-in player.
