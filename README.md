@@ -77,7 +77,7 @@ Focus on high precision for correct phrase boundaries.
   Response: `{ notes: [{ pitch, onset, duration, loudness }] }`.
 
 ## Repository Structure
-`
+```
 .
 ├─ requirements.txt # Python dependencies
 ├─ run_parser.py # CLI: parser/harmony analysis launch
@@ -114,7 +114,7 @@ Focus on high precision for correct phrase boundaries.
 │     └─ __init__.py
 
 └─ .gitignore # Git exclusions
-`
+```
 
 ## Running the Project
 
