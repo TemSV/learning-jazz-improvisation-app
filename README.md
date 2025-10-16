@@ -52,29 +52,29 @@ Focus on high precision for correct phrase boundaries.
 ## API
 - GET /api/songs
   Paginated list of songs with search by title.
-  Parameters: \`q\` (optional), \`limit\` (default 20), \`offset\` (default 0).
-  Response: \`{ total, items: [{ id, title }] }\`.
+  Parameters: `q` (optional), `limit` (default 20), `offset` (default 0).
+  Response: `{ total, items: [{ id, title }] }`.
 
 - GET /api/songs/{song_id}/chords
   Chord sequence of the song.
-  Path parameters: \`song_id\` (required).
-  Response: \`{ song_id, title, bars: [{ id, number, time_signature, chords, section }] }\`.
+  Path parameters: `song_id` (required).
+  Response: `{ song_id, title, bars: [{ id, number, time_signature, chords, section }] }`.
 
 - GET /api/songs/{song_id}/patterns
   Detected harmonic patterns for the song.
-  Path parameters: \`song_id\` (required).
-  Response: \`{ song_id, title, patterns: [{ type, key, bar_ids: [..], normalized_chords: [{ chord, duration }], features: [...] }] }\`.
+  Path parameters: `song_id` (required).
+  Response: `{ song_id, title, patterns: [{ type, key, bar_ids: [..], normalized_chords: [{ chord, duration }], features: [...] }] }`.
 
 - POST /api/recommendations/phrases
   Phrase recommendations for a given pattern.
-  Body: \`{ features: [...] }\` (numeric feature vector of the pattern).
-  Response: \`{ items: [{ melid, first_note_id, last_note_id, score, chords }] }\`.
+  Body: `{ features: [...] }` (numeric feature vector of the pattern).
+  Response: `{ items: [{ melid, first_note_id, last_note_id, score, chords }] }`.
 
 - GET /api/phrases/{melid}/notes
   Notes of the selected phrase for playback.
-  Path parameters: \`melid\` (required).
-  Query parameters: \`first_note_id\`, \`last_note_id\` (both required).
-  Response: \`{ notes: [{ pitch, onset, duration, loudness }] }\`.
+  Path parameters: `melid` (required).
+  Query parameters: `first_note_id`, `last_note_id` (both required).
+  Response: `{ notes: [{ pitch, onset, duration, loudness }] }`.
 
 ## Repository Structure
 `
@@ -200,26 +200,26 @@ python core/ml/kaggle/evaluate_kaggle_model.py \
 User scenarios are described with API mapping.
 
 ### Song List
-- On screen open, client requests song list: \`GET /api/songs?q=<search>&limit=<N>&offset=<K>\`.
-- Response contains \`total\` and \`items[{ id, title }]\`, list is rendered from \`items\`.
+- On screen open, client requests song list: `GET /api/songs?q=<search>&limit=<N>&offset=<K>`.
+- Response contains `total` and `items[{ id, title }]`, list is rendered from `items`.
 - On scroll/search, same endpoint is called with updated parameters.
 ![Song list — result of GET /api/songs](assets/screen1.png)
 
 ### Chord Sequence
-- On song tap, chord grid is loaded: \`GET /api/songs/{song_id}/chords\`.
-- Response: \`{ song_id, title, bars: [{ id, number, time_signature, chords, section }] }\`, bars are displayed in a grid, form sections and time signatures are taken from \`section\` and \`time_signature\`.
+- On song tap, chord grid is loaded: `GET /api/songs/{song_id}/chords`.
+- Response: `{ song_id, title, bars: [{ id, number, time_signature, chords, section }] }`, bars are displayed in a grid, form sections and time signatures are taken from `section` and `time_signature`.
 ![Chord sequence — result of GET /api/songs/{song_id}/chords](assets/screen2.png)
 
 ### Patterns in Song
-- On pattern search button tap: \`GET /api/songs/{song_id}/patterns\`.
-- Response includes \`patterns[{ type, key, bar_ids, normalized_chords, features }]\`; bars from \`bar_ids\` are highlighted, color depends on \`type\`.
+- On pattern search button tap: `GET /api/songs/{song_id}/patterns`.
+- Response includes `patterns[{ type, key, bar_ids, normalized_chords, features }]`; bars from `bar_ids` are highlighted, color depends on `type`.
 ![Patterns — result of GET /api/songs/{song_id}/patterns](assets/screen3.png)
 
 ### Phrase Recommendations
-- On bar selection, a request is formed: \`POST /api/recommendations/phrases\` with body \`{ features: [...] }\` from the selected pattern.
-- Response: \`items[{ melid, first_note_id, last_note_id, score, chords }]\`; list supports loading next batch of results.
+- On bar selection, a request is formed: `POST /api/recommendations/phrases` with body `{ features: [...] }` from the selected pattern.
+- Response: `items[{ melid, first_note_id, last_note_id, score, chords }]`; list supports loading next batch of results.
 ![Recommendations — result of POST /api/recommendations/phrases](assets/screen4.png)
 
 ### Phrase Playback
-- On "Play" tap, phrase notes are loaded: \`GET /api/phrases/{melid}/notes?first_note_id=<A>&last_note_id=<B>\`.
-- Response: \`notes[{ pitch, onset, duration, loudness }]\`, which are played by the built-in player.
+- On "Play" tap, phrase notes are loaded: `GET /api/phrases/{melid}/notes?first_note_id=<A>&last_note_id=<B>Ы`.
+- Response: `notes[{ pitch, onset, duration, loudness }]`, which are played by the built-in player.
