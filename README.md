@@ -77,7 +77,7 @@ Focus on high precision for correct phrase boundaries.
   Response: \`{ notes: [{ pitch, onset, duration, loudness }] }\`.
 
 ## Repository Structure
-\`\`\`
+`
 .
 ├─ requirements.txt # Python dependencies
 ├─ run_parser.py # CLI: parser/harmony analysis launch
@@ -114,7 +114,7 @@ Focus on high precision for correct phrase boundaries.
 │     └─ __init__.py
 
 └─ .gitignore # Git exclusions
-\`\`\`
+`
 
 ## Running the Project
 
@@ -125,75 +125,75 @@ Requirements:
 
 Installation:
 1) Clone and environment setup
-\`\`\`bash
+`bash
 git clone https://github.com/TemSV/learning-jazz-improvisation-app.git
 cd learning-jazz-improvisation-app
 python -m venv .venv && source .venv/bin/activate  # Windows: .venv\Scripts\activate
-\`\`\`
+`
 
 2) Dependencies
-\`\`\`bash
+`bash
 pip install --upgrade pip
 pip install -r requirements.txt
-\`\`\`
+`
 
 3) Environment variables
-\`\`\`bash
+`bash
 export WJD_DATA_DIR=/path/to/weimar_jazz_database
 export APP_DB_URI=sqlite:///local.db         # or your DB connection string
 export API_HOST=0.0.0.0
 export API_PORT=8000
-\`\`\`
+`
 
 Running the API server:
 1) Local run (Uvicorn/FastAPI)
-\`\`\`bash
+`bash
 uvicorn api.main:app --host ${API_HOST:-0.0.0.0} --port ${API_PORT:-8000} --reload
-\`\`\`
+`
 
 2) Documentation
 Open http://localhost:8000/docs
 
 Data preparation and phrase cache:
 1) Preprocessing and cache population
-\`\`\`bash
+`bash
 python preprocess_phrases.py \
   --data_dir "$WJD_DATA_DIR" \
   --out_db local.db
-\`\`\`
+`
 
 2) Single song analysis/parsing
-\`\`\`bash
+`bash
 python run_parser.py --song_id 123 --db_uri "$APP_DB_URI"
-\`\`\`
+`
 
 Model training (Kaggle GPU, scripts in core/ml/kaggle):
 1) Dataset and feature preparation
-\`\`\`bash
+`bash
 python core/ml/kaggle/prepare_kaggle_data.py \
   --data_dir "$WJD_DATA_DIR" \
   --out_dir core/ml/kaggle/cache
-\`\`\`
+`
 
 2) Bi-LSTM + Self-Attention training
-\`\`\`bash
+`bash
 python core/ml/kaggle/train_kaggle_model.py \
   --cache_dir core/ml/kaggle/cache \
   --batch_size 64 --epochs 200 --lr 3e-4
-\`\`\`
+`
 
 3) Test set evaluation
-\`\`\`bash
+`bash
 python core/ml/kaggle/evaluate_kaggle_model.py \
   --cache_dir core/ml/kaggle/cache
-\`\`\`
+`
 
 4) Phrase segmentation inference (example)
-\`\`\`bash
+`bash
 python core/ml/kaggle/evaluate_kaggle_model.py \
   --cache_dir core/ml/kaggle/cache \
   --infer_sample /path/to/sample.csv
-\`\`\`
+`
 
 ## Key Usage Scenarios and Interface Screenshots
 
